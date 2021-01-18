@@ -107,6 +107,7 @@ client.on('message', async message =>{
 })
 
 client.on('messageDelete', async message =>{
+    if (message.author.bot) return;
     let query = `SELECT * FROM servers WHERE id = ?`
     db.get(query, [message.guild.id], (err, row) =>{
     let guildid = message.guild.id;
@@ -207,10 +208,10 @@ client.on('message', async message => {
         .setColor(botColor)
         .setDescription(
             "**Префикс:** . \n\
-            `хелп`,\n\
-            `сервер`,\n\
-            `профиль`, \n\
-            `пинг`,\n\
+            `хелп`\n\
+            `сервер`\n\
+            `профиль` <участник> \n\
+            `пинг`\n\
             `с` {текст}\
         ")
         .setFooter("{} - обяз. аргумент, <> - необяз.", client.user.avatarURL())
@@ -224,8 +225,10 @@ client.on('message', async message => {
         Если указать 'навсегда' вместо кол-во дней, участника забанят навсегда..\n\
         `мьют` {участник}\n\
         `размьют` {участник}\n\
-        `модерация`\
+        `модерация`\n\
+        `эмбед` {титул} {описание} <нижний титул>\
         ")
+        .setFooter("{} - обяз. аргумент, <> - необяз.", client.user.avatarURL())
         message.channel.send(non).then(msg =>{
             msg.react('◀️').then(r =>{
                 msg.react('▶️')
@@ -249,6 +252,12 @@ client.on('message', async message => {
         })
     }
     if(command == "кик"){
+        let queryg = `SELECT * FROM servers WHERE id = ?`
+        db.get(queryg, [message.guild.id], (err, row_g) =>{
+            if(err){
+                console.log(err);
+                return;
+            }
         const {member, mentions} = message
         if (member.hasPermission('ADMINISTRATOR') || member.hasPermission('KICK_MEMBERS')){
             const memb = message.mentions.users.first()
@@ -272,6 +281,10 @@ client.on('message', async message => {
                 message.channel.send(kickem).then(msg =>{
                     okey('✅', msg, userid)
                 });
+                if (row_g.logs == 'on'){
+                    const channel = client.channels.cache.get(row_g.log_channel)
+                    channel.send(kickem);
+                }
             }else{
                 emb_error('Пользователь не найден', 'Пользователь не найден или не указан. \
                           Использование команды: .кик {участник} <причина>', message.member.user.avatarURL(), message)
@@ -280,8 +293,15 @@ client.on('message', async message => {
             emb_error('Недостаточно прав', 'У вас недостаточно прав! \
                           Требуются права администратора, или же права на кик пользователя.', message.member.user.avatarURL(), message)
         }
+        });
     }
     if(command == "бан"){
+        let queryg = `SELECT * FROM servers WHERE id = ?`
+        db.get(queryg, [message.guild.id], (err, row_g) =>{
+            if(err){
+                console.log(err);
+                return;
+            }
         const {member, mentions} = message
         if (member.hasPermission('ADMINISTRATOR') || member.hasPermission('BAN_MEMBERS')){
             const memb = message.mentions.users.first()
@@ -316,6 +336,10 @@ client.on('message', async message => {
                 message.channel.send(banem).then(msg =>{
                     okey('✅', msg, userid)
                 });
+                if (row_g.logs == 'on'){
+                    const channel = client.channels.cache.get(row_g.log_channel)
+                    channel.send(banem);
+                }
             }else{
                 emb_error('Пользователь не найден', 'Пользователь не найден или не указан. \
                           Использование команды: .бан {участник} {кол-во дней (цифрой)} <причина> \n\
@@ -325,6 +349,7 @@ client.on('message', async message => {
             emb_error('Недостаточно прав', 'У вас недостаточно прав! \
                           Требуются права администратора, или же права на бан пользователя.', message.member.user.avatarURL(), message)
         }
+    });
     }
     if(command == "мьют"){
         const {member, mentions} = message
@@ -507,6 +532,18 @@ client.on('message', async message => {
         })
     });
     }
+    if(command == "эмбед"){
+        const args_emb = message.content.slice(prefix.length).trim().split("'");
+        let foot;
+        if(!args_emb[5]){foot = 'Не указано'}else foot = args_emb[5]
+        const emb = new Discord.MessageEmbed()
+        .setTitle(args_emb[1])
+        .setColor(botColor)
+        .setDescription(args_emb[3])
+        .setFooter(foot)
+        message.channel.send(emb)
+
+    }
     if(command == "модерация"){
         let querys = 'SELECT * FROM servers WHERE id = ?'
         db.get(querys, [message.guild.id], (err, row) =>{
@@ -545,7 +582,8 @@ client.on('message', async message => {
                 filter.on('collect', r =>{
                     db.run(`UPDATE servers SET filtr = ? WHERE id = ?`, [filters, message.guild.id]);
                     msg.delete();
-                    message.channel.send(`Фильтрация чата успешно ${mess}!`)
+                    if(row.filtr === 'off') message.channel.send(`Фильтрация чата успешно включена!`)
+                    if(row.filtr === 'on') message.channel.send(`Фильтрация чата успешно выключена!`)
                 })
                 log.on('collect', r =>{
                     if(row.logs == 'on'){
@@ -563,6 +601,7 @@ client.on('message', async message => {
                             db.run(`UPDATE servers SET logs = ?, log_channel = ? WHERE id = ?`, ['on', m.content, message.guild.id]);
                             message.channel.send("Чат логов установлен").then(msgg => {
                                 okey('✅', msgg, userid)
+                                a.delete();
                             })
                             log_use++;
                             }
