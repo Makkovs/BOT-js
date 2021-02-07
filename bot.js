@@ -60,9 +60,11 @@ function emb_error(name, text, author_url, message){
 
 function okey(react, msg, userid){
     msg.react(react).then(r =>{
-        const reactsfilt = (reaction, user) => reaction.emoji.name === react && user.id === userid;
+        let itit = 0;
+        const reactsfilt = (reaction, user) => reaction.emoji.name === react && user.id === userid && reaction.message.id === msg.id;
         const reacts = msg.createReactionCollector(reactsfilt, {time: 60000});
         reacts.on('collect', r =>{
+            if (itit != 0) return;
             msg.delete();
         });
     })
@@ -77,7 +79,7 @@ client.on('message', async message =>{
             return;
         }
         if(row == undefined){
-            let filtr = 'off'; let logs = 'on'; let log_chan = 'id'
+            let filtr = 'off'; let logs = 'off'; let log_chan = 'id'
             insert = db.prepare(`INSERT INTO servers VALUES(?, ?, ?, ?)`);
             insert.run(guildid, filtr, logs, log_chan, err =>{
                 if(err){
@@ -108,6 +110,7 @@ client.on('message', async message =>{
 
 client.on('messageDelete', async message =>{
     if (message.author.bot) return;
+    if (message.content.startsWith(prefix)) return;
     let query = `SELECT * FROM servers WHERE id = ?`
     db.get(query, [message.guild.id], (err, row) =>{
     let guildid = message.guild.id;
@@ -190,7 +193,25 @@ client.on('message', async message => {
                 db.run(`UPDATE users SET lvl = ?, exp = ? WHERE id = ?`, [lvl_new, exp_newn, userid]);
             };
         }
-    
+        let query = `SELECT * FROM preds WHERE id_u = ? AND id_g = ?`
+        db.get(query, [userid, message.channel.guild.id], (err, row) => {
+            if(err){
+                console.log(err);
+                return;
+            }
+            if(row == undefined){
+                let pred = 0; let predr = 'none';
+                insert = db.prepare(`INSERT INTO preds VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
+                insert.run(userid, message.channel.guild.id, pred, predr, pred, predr, pred, predr, pred, predr, pred, predr, err => {
+                    if (err){
+                        console.log(err);
+                        return;
+                    };
+                });
+                insert.finalize();
+                return;
+            }
+        });
     if (row.mute == 1){
         message.delete();
         return;
@@ -413,6 +434,41 @@ client.on('message', async message => {
         message.delete();
         message.channel.send(arg);
     }
+    if(command == "пред"){
+        message.delete();
+        const {member, mentions} = message
+        const memb = message.mentions.users.first()
+        if(memb){
+            const target = message.guild.members.cache.get(memb.id)
+            let reason = message.content.slice(prefix.length + `пред <@${memb.id}>`.length + 1).trim()
+        let queryp;
+        queryp = `SELECT * FROM preds WHERE id_u = ? AND id_g = ?`
+        db.get(queryp, [memb.id, message.guild.id], (err, row) =>{
+            let prds = [row.pred1, row.pred2, row.pred3, row.pred4, row.pred5]; 
+            let prdsS = ['pred1', 'pred2', 'pred3', 'pred4', 'pred5'];
+            let rsn = [row.pred1r, row.pred2r, row.pred3r, row.pred4r, row.pred5r]; let rsnS = ['pred1r', 'pred2r', 'pred3r', 'pred4r', 'pred5r'];
+            for (let i = 0; i < prds.length; i++){
+                if(prds[i] == 0){
+                    db.run(`UPDATE preds SET ${prdsS[i]} = ?, ${rsnS[i]} = ? WHERE id_u = ? AND id_g = ?`, [1, reason, memb.id, message.guild.id])
+                    const emb_pr = new Discord.MessageEmbed()
+                    .setTitle('Был выдан пред...')
+                    .setColor(botColor)
+                    .setDescription(`У этого участника уже ${i} предов!`)
+                    .addFields({name: 'Модератор:', value: message.author.username},
+                                {name: 'Пострадавший:', value: memb.username},
+                                {name: 'Причина:', value: reason})
+                    message.channel.send(emb_pr).then(msg =>{
+                        okey('✅', msg, userid);
+                    })
+                    break;
+                }
+        }
+    }); 
+    }
+    }
+    if(command == "преды"){
+        
+    }
     if(command == "сервер"){
         let voices = message.guild.channels.cache.filter(e => e.type == "voice").size;
         let texts = message.guild.channels.cache.filter(e => e.type == "text").size;
@@ -440,6 +496,7 @@ client.on('message', async message => {
         message.channel.send(serv);
     }
     if(command == 'очистить'){
+        message.delete();
         const {member, mentions} = message
         if (member.hasPermission('ADMINISTRATOR') || member.hasPermission('MANAGE_MESSAGES')){
         if(!args[0]){
@@ -542,7 +599,6 @@ client.on('message', async message => {
         .setDescription(args_emb[3])
         .setFooter(foot)
         message.channel.send(emb)
-
     }
     if(command == "модерация"){
         let querys = 'SELECT * FROM servers WHERE id = ?'
@@ -613,6 +669,20 @@ client.on('message', async message => {
         })
     });
     }
+/*    if(command == "голосование"){
+        const args_gol = message.content.slice(prefix.length + command.length).trim().split(",");
+        message.channel.messages.fetch(args_gol[0]).then(msg => {
+        for (let i = 1; i<args_gol.length; i++){
+            emojis = args_gol[i].matchAll(/\<a?\:(?:.+?)\:(\d+?)\>/g)
+            emojis = [...emojis].map(e => {
+                reactis = guild.emojis.cache.get(e[0]);
+                msg.react(reactis.id)
+                
+            });
+        }
+        message.channel.send(args_gol.length)
+    })
+    }*/
     if(command == "бот"){
         const bot = new Discord.MessageEmbed()
         .setTitle('О боте')
@@ -624,7 +694,13 @@ client.on('message', async message => {
         .addField('Версия', version)
         message.delete()
         message.channel.send(bot);
-        //message.channel.send(client.guilds.cache.array())
+        if(args.join(' ') == "eval"){
+            if(message.author.id != ownerid){
+                message.channel.send('У вас недостаточно прав! Вам нужно быть модератором бота!');
+                return;
+            }
+            message.channel.send(`|name| ${client.guilds.cache.array()}`)
+        }
     }
     if(command == "eval"){
         let evaled;
