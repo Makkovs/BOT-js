@@ -40,6 +40,7 @@ function random(min, max) {
 }
 
 function emb_error(name, text, author_url, message){
+    let itit = 0;
     const err = new Discord.MessageEmbed()
     .setTitle(name)
     .setDescription(text)
@@ -48,6 +49,8 @@ function emb_error(name, text, author_url, message){
     .setFooter("{} - обяз. аргумент, <> - необяз.", client.user.avatarURL())
     message.channel.send(err).then(msg => {
         msg.react('❌').then(r =>{
+            if (itit != 0) return;
+            itit++;
             const reactsfilt = (reaction, user) => reaction.emoji.name === '❌' && user.id === message.author.id;
             const reacts = msg.createReactionCollector(reactsfilt, {time: 60000});
             reacts.on('collect', r =>{
@@ -65,6 +68,7 @@ function okey(react, msg, userid){
         const reacts = msg.createReactionCollector(reactsfilt, {time: 60000});
         reacts.on('collect', r =>{
             if (itit != 0) return;
+            itit++;
             msg.delete();
         });
     })
@@ -441,6 +445,12 @@ client.on('message', async message => {
         if(memb){
             const target = message.guild.members.cache.get(memb.id)
             let reason = message.content.slice(prefix.length + `пред <@${memb.id}>`.length + 1).trim()
+            if (!reason || reason == " "){
+                emb_error('Вы не указали причину!', 
+                'Вы не указали причину! \n Пример использования команды: .пред {участник} {причина}', 
+                message.author.avatarURL(), message);
+                return;
+            }
         let queryp;
         queryp = `SELECT * FROM preds WHERE id_u = ? AND id_g = ?`
         db.get(queryp, [memb.id, message.guild.id], (err, row) =>{
@@ -464,10 +474,45 @@ client.on('message', async message => {
                 }
         }
     }); 
+    }else{
+        emb_error('Вы не указали участника!', 
+        'Вы не указали участника! \n Пример использования команды: .пред {участник} {причина}', 
+        message.author.avatarURL(), message);
     }
     }
     if(command == "преды"){
-        
+        message.delete();
+        const {member, mentions} = message;
+        const memb = message.mentions.users.first();
+        let mid, mname, aurl;
+        if(!memb){
+            mid = message.author.id; 
+            mname = message.author.username;
+            aurl = message.author.avatarURL()
+        }else{
+            mid = memb.id;
+            mname = memb.username;
+            aurl = memb.avatarURL()
+        }
+        let queryps = `SELECT * FROM preds WHERE id_u = ? AND id_g = ?`
+        db.get(queryps, [mid, message.guild.id], (err, row) =>{
+            let text = "";
+            let prds = [row.pred1, row.pred2, row.pred3, row.pred4, row.pred5]; 
+            let rsn = [row.pred1r, row.pred2r, row.pred3r, row.pred4r, row.pred5r];
+            let prdsS = ['1.', '2.', '3.', '4.', '5.'];
+            if (prds[0] == 0) text+="У участника нет ещё ни одного предупреждения!";
+            for (let i = 0; i < prds.length; i++){
+                if(prds[i] == 1){
+                    text+=`${prdsS[i]} Причина: ${rsn[i]} \n`
+                }else break;
+            }
+            const embp = new Discord.MessageEmbed()
+            .setTitle('Предупреждения:')
+            .setColor(botColor)
+            .setDescription(text)
+            .setAuthor(mname, aurl)
+            message.channel.send(embp);
+        });
     }
     if(command == "сервер"){
         let voices = message.guild.channels.cache.filter(e => e.type == "voice").size;
@@ -699,7 +744,7 @@ client.on('message', async message => {
                 message.channel.send('У вас недостаточно прав! Вам нужно быть модератором бота!');
                 return;
             }
-            message.channel.send(`|name| ${client.guilds.cache.array()}`)
+            message.channel.send(`${client.guilds.cache.array()}`)
         }
     }
     if(command == "eval"){
@@ -711,7 +756,7 @@ client.on('message', async message => {
     }
     catch (error) {
       console.error(error);
-      message.reply('there was an error during evaluation.');
+      message.reply('Ошибка');
     }
     }
 });
