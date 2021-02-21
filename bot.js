@@ -1,4 +1,4 @@
-const Discord = require('discord.js');
+    const Discord = require('discord.js');
 const { inspect } = require('util');
 const fs = require('fs')
 const sqlite3 = require('sqlite3').verbose();
@@ -460,10 +460,13 @@ client.on('message', async message => {
             for (let i = 0; i < prds.length; i++){
                 if(prds[i] == 0){
                     db.run(`UPDATE preds SET ${prdsS[i]} = ?, ${rsnS[i]} = ? WHERE id_u = ? AND id_g = ?`, [1, reason, memb.id, message.guild.id])
+                    message.channel.send(i)
+                    let nump = i + 1;
+                    message.channel.send(nump)
                     const emb_pr = new Discord.MessageEmbed()
                     .setTitle('Был выдан пред...')
                     .setColor(botColor)
-                    .setDescription(`У этого участника уже ${i} предов!`)
+                    .setDescription(`У этого участника уже ${nump} предов!`)
                     .addFields({name: 'Модератор:', value: message.author.username},
                                 {name: 'Пострадавший:', value: memb.username},
                                 {name: 'Причина:', value: reason})
@@ -504,7 +507,7 @@ client.on('message', async message => {
             for (let i = 0; i < prds.length; i++){
                 if(prds[i] == 1){
                     text+=`${prdsS[i]} Причина: ${rsn[i]} \n`
-                }else break;
+                }
             }
             const embp = new Discord.MessageEmbed()
             .setTitle('Предупреждения:')
@@ -513,6 +516,48 @@ client.on('message', async message => {
             .setAuthor(mname, aurl)
             message.channel.send(embp);
         });
+    }
+    if(command == "разпред"){
+        message.delete();
+        const {member, mentions} = message
+        const memb = message.mentions.users.first()
+        if(memb){
+            const target = message.guild.members.cache.get(memb.id)
+            let number = message.content.slice(prefix.length + `разпред <@${memb.id}>`.length + 1).trim()
+            if (!number){
+                emb_error('Вы не указали номер предупреждения!', 
+                'Вы не указали номер предупреждения! \n Пример использования команды: .разпред {участник} {номер преда}', 
+                message.author.avatarURL(), message);
+                return;
+            }
+        let queryp;
+        queryp = `SELECT * FROM preds WHERE id_u = ? AND id_g = ?`
+        db.get(queryp, [memb.id, message.guild.id], (err, row) =>{
+            let prds = [row.pred1, row.pred2, row.pred3, row.pred4, row.pred5]; 
+            let prdsS = ['pred1', 'pred2', 'pred3', 'pred4', 'pred5'];
+            let rsn = [row.pred1r, row.pred2r, row.pred3r, row.pred4r, row.pred5r]; let rsnS = ['pred1r', 'pred2r', 'pred3r', 'pred4r', 'pred5r'];
+            for (let i = 0; i < prds.length; i++){
+                if (i == number){
+                    db.run(`UPDATE preds SET ${prdsS[i-1]} = ? WHERE id_u = ? AND id_g = ?`, [0, memb.id, message.guild.id])
+                    const emb_pr = new Discord.MessageEmbed()
+                    .setTitle('Был выдан пред...')
+                    .setColor(botColor)
+                    .setDescription(`У этого участника сняли пред!`)
+                    .addFields({name: 'Модератор:', value: message.author.username},
+                                {name: 'Участник:', value: memb.username},
+                                {name: 'Причина преда:', value: rsn[i-1]})
+                    message.channel.send(emb_pr).then(msg =>{
+                        okey('✅', msg, userid);
+                    })
+                    break;
+                }
+        }
+    }); 
+    }else{
+        emb_error('Вы не указали участника!', 
+        'Вы не указали участника! \n Пример использования команды: .пред {участник} {причина}', 
+        message.author.avatarURL(), message);
+    }
     }
     if(command == "сервер"){
         let voices = message.guild.channels.cache.filter(e => e.type == "voice").size;
