@@ -222,38 +222,38 @@ client.on('message', async message => {
     }
     });
     if (!message.content.startsWith(prefix)) return;
-    //const args = commandBody.split(' ');
     const args = message.content.slice(prefix.length).trim().split(' ');
     let command = args.shift().toLowerCase();
     if(command == "хелп"){
         let page = 1;
         message.delete();
         const non = new Discord.MessageEmbed()
-        .setTitle(":file_folder:Без категории")
+        .setTitle(":receipt:Информативные")
         .setColor(botColor)
+        .setAuthor('{} - обяз. аргумент, <> - необяз.', message.author.avatarURL())
         .setDescription(
             "**Префикс:** . \n\
             `хелп`\n\
             `сервер`\n\
             `профиль` <участник> \n\
             `пинг`\n\
-            `с` {текст}\
+            `преды` <участник>\
         ")
-        .setFooter("{} - обяз. аргумент, <> - необяз.", client.user.avatarURL())
+        .setFooter("Cтраница 1", client.user.avatarURL())
         const moderator = new Discord.MessageEmbed()
         .setTitle(":tools:Модеративные команды")
         .setColor(botColor)
+        .setAuthor('{} - обяз. аргумент, <> - необяз.', message.author.avatarURL())
         .setDescription("\
-        **Префикс:** .\n\
-        `кик` {участник} <причина>\n\
-        `бан` {учатсник} {кол-во дней} <причина>\n\
-        Если указать 'навсегда' вместо кол-во дней, участника забанят навсегда..\n\
-        `мьют` {участник}\n\
-        `размьют` {участник}\n\
-        `модерация`\n\
-        `эмбед` {титул} {описание} <нижний титул>\
+            **Префикс:** .\n\
+            `кик` {участник} <причина>\n\
+            `бан` {учатсник} {кол-во дней} <причина>\n\
+            Если указать 'навсегда' вместо кол-во дней, участника забанят навсегда..\n\
+            `мьют` {участник}\n\
+            `размьют` {участник}\n\
+            `модерация`\n\
         ")
-        .setFooter("{} - обяз. аргумент, <> - необяз.", client.user.avatarURL())
+        .setFooter("Cтраница 2", client.user.avatarURL())
         message.channel.send(non).then(msg =>{
             msg.react('◀️').then(r =>{
                 msg.react('▶️')
@@ -272,8 +272,8 @@ client.on('message', async message => {
                     if (page == 2) return;
                     page++;
                     msg.edit(moderator);
-                })
-            })
+                });
+            });
         })
     }
     if(command == "кик"){
@@ -592,12 +592,14 @@ client.on('message', async message => {
         if(!args[0]){
             emb_error('Не указано количество!', "Не указано количество сообщений для удаления.\
             Использование команды: .очистить {кол-во сообщений}.", message.member.user.avatarURL(), message)
+            return;
         }
-        message.channel.bulkDelete(args[0], true);
+        let numa = args[0]++;
+        message.channel.bulkDelete(numa, true);
         const msg_del = new Discord.MessageEmbed()
         .setTitle('Очистка завершена!')
         .setColor(botColor)
-        .setDescription(`Было удалено ${args[0]} сообщений!`)
+        .setDescription(`Было удалено ${args[0]-1} сообщений!`)
         message.channel.send(msg_del).then(msg =>{
             okey('✅', msg, userid)
         })
@@ -678,6 +680,98 @@ client.on('message', async message => {
             })
         })
     });
+    }
+    if (command == "идея"){
+        const guildd = client.guilds.cache.get('806229798237372416')
+        const channel = guildd.channels.cache.get('812987501953941524')
+        message.delete()
+        const argsi = message.content.slice(prefix.length + "идея".length)
+        const ideae = new Discord.MessageEmbed()
+        .setTitle('Отличная идея, правда? :bulb:')
+        .setColor(botColor)
+        .setDescription(argsi)
+        .addField('Статус:', 'На рассмотрении')
+        .setFooter(message.author.username, message.author.avatarURL())
+        const ideaok = new Discord.MessageEmbed()
+        .setTitle('Отличная идея, правда? :bulb:')
+        .setColor(botColor)
+        .setDescription(argsi)
+        .addField('Статус:', 'Принято')
+        .setFooter(message.author.username, message.author.avatarURL())
+        const ideano = new Discord.MessageEmbed()
+        .setTitle('Отличная идея, правда? :bulb:')
+        .setColor(botColor)
+        .setDescription(argsi)
+        .addField('Статус:', 'Отклонено')
+        .setFooter(message.author.username, message.author.avatarURL())
+        let uses = 0; 
+        channel.send(ideae).then(idea =>{
+            idea.react('✅')
+            idea.react('❌')
+
+            const Fok = (reaction, user) => reaction.emoji.name === '✅' && user.id === ownerid; 
+			const Fno = (reaction, user) => reaction.emoji.name === '❌' && user.id === ownerid;
+				
+			const ok = idea.createReactionCollector(Fok, {time: 1200000});
+            const no = idea.createReactionCollector(Fno, {time: 1200000});
+
+            ok.on('collect', r =>{
+                if(uses == 1) return;
+                idea.edit(ideaok);
+                uses++;
+            })
+            no.on('collect', r =>{
+                if(uses == 1) return;
+                idea.edit(ideano);
+                uses++;
+            })
+        })
+    }
+    if (command == "баг"){
+        const guildd = client.guilds.cache.get('806229798237372416')
+        const channel = guildd.channels.cache.get('812987438263435264')
+        message.delete()
+        const argsi = message.content.slice(prefix.length + "идея".length)
+        const bage = new Discord.MessageEmbed()
+        .setTitle('Упс... Замечен баг...')
+        .setColor(botColor)
+        .setDescription(argsi)
+        .addField('Статус', 'Не тронут..')
+        .setFooter(message.author.username, message.author.avatarURL())
+        const bagok = new Discord.MessageEmbed()
+        .setTitle('Упс... Замечен баг...')
+        .setColor(botColor)
+        .setDescription(argsi)
+        .addField('Статус', 'Пофикшен')
+        .setFooter(message.author.username, message.author.avatarURL())
+        const bagno = new Discord.MessageEmbed()
+        .setTitle('Упс... Замечен баг...')
+        .setColor(botColor)
+        .setDescription(argsi)
+        .addField('Статус', 'Не найден')
+        .setFooter(message.author.username, message.author.avatarURL())
+        let uses = 0;
+        channel.send(bage).then(bag =>{
+            bag.react('✅')
+            bag.react('❌')
+
+            const Fok = (reaction, user) => reaction.emoji.name === '✅' && user.id === ownerid; 
+            const Fno = (reaction, user) => reaction.emoji.name === '❌' && user.id === ownerid;
+                
+            const ok = bag.createReactionCollector(Fok, {time: 1200000});
+            const no = bag.createReactionCollector(Fno, {time: 1200000});
+
+            ok.on('collect', r =>{
+                if(uses == 1) return;
+                bag.edit(bagok);
+                uses++;
+            })
+            no.on('collect', r =>{
+                if(uses == 1) return;
+                bag.edit(bagno);
+                uses++;
+            })
+        })
     }
     if(command == "эмбед"){
         const args_emb = message.content.slice(prefix.length).trim().split("'");
