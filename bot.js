@@ -168,6 +168,29 @@ client.on('guildMemberAdd', async member =>{
 client.on('message', async message => {
     let userid = message.author.id;
     if (message.author.bot) return;
+    let querys = `SELECT * FROM gusers WHERE id_u = ? AND id_g = ?`
+    db.get(querys, [userid, message.guild.id], (err, rowm) => {
+        if(err){
+            console.log(err);
+            return;
+        }
+        if(rowm == undefined){
+           let mutee = 0;
+            inserts = db.prepare(`INSERT INTO gusers VALUES(?, ?, ?)`);
+            inserts.run(userid, message.guild.id, mutee, err => {
+                if (err){
+                    console.log(err);
+                    return;
+                };
+            });
+            inserts.finalize();
+            return;
+        }
+        if (rowm.mute == 1){
+            message.delete();
+            return;
+        }
+    });
     let query = `SELECT * FROM users WHERE id = ?`
     db.get(query, [userid], (err, row) => {
         if(err){
@@ -175,9 +198,9 @@ client.on('message', async message => {
             return;
         }
         if(row == undefined){
-            let cash = 0; let lvl = 1; let exp = 1; let mute_stat = 0;
-            insert = db.prepare(`INSERT INTO users VALUES(?, ?, ?, ?, ?)`);
-            insert.run(userid, cash, lvl, exp, mute_stat, err => {
+            let cash = 0; let lvl = 1; let exp = 1; 
+            insert = db.prepare(`INSERT INTO users VALUES(?, ?, ?, ?)`);
+            insert.run(userid, cash, lvl, exp, err => {
                 if (err){
                     console.log(err);
                     return;
@@ -216,18 +239,14 @@ client.on('message', async message => {
                 return;
             }
         });
-    if (row.mute == 1){
-        message.delete();
-        return;
-    }
     });
     if (!message.content.startsWith(prefix)) return;
     const args = message.content.slice(prefix.length).trim().split(' ');
     let command = args.shift().toLowerCase();
     if(command == "хелп"){
-        let page = 1;
+        let page = 0;
         message.delete();
-        const non = new Discord.MessageEmbed()
+        const inf = new Discord.MessageEmbed()
         .setTitle(":receipt:Информативные")
         .setColor(botColor)
         .setAuthor('{} - обяз. аргумент, <> - необяз.', message.author.avatarURL())
@@ -251,9 +270,32 @@ client.on('message', async message => {
             Если указать 'навсегда' вместо кол-во дней, участника забанят навсегда..\n\
             `мьют` {участник}\n\
             `размьют` {участник}\n\
-            `модерация`\n\
         ")
         .setFooter("Cтраница 2", client.user.avatarURL())
+        const moderator2 = new Discord.MessageEmbed()
+        .setTitle(":tools:Модеративные команды")
+        .setColor(botColor)
+        .setDescription("\
+            **Префикс:** . \n\
+            `пред` {участник} {причина} \n\
+            `разпред` {участник} {номер преда} \n\
+            `модерация`  \n\
+            `эмбед` '{заголовок}' '{описание}' '<подзаголовок>' \n\
+        ")
+        .setAuthor('{} - обяз. аргумент, <> - необяз.', message.author.avatarURL())
+        .setFooter("Cтраница 3", client.user.avatarURL())
+        const non = new Discord.MessageEmbed()
+        .setTitle(":file_folder:Команды без категории")
+        .setColor(botColor)
+        .setDescription("\
+            **Префикс:** . \n\
+            `баг` {баг который вы нашли} \n\
+            `идея` {ваша идея} \n\
+            `с` {текст} \n\
+        ")
+        .setAuthor('{} - обяз. аргумент, <> - необяз.', message.author.avatarURL())
+        .setFooter("Cтраница 4", client.user.avatarURL())
+        let pages = [inf, moderator, moderator2, non]
         message.channel.send(non).then(msg =>{
             msg.react('◀️').then(r =>{
                 msg.react('▶️')
@@ -264,14 +306,16 @@ client.on('message', async message => {
                 const fors = msg.createReactionCollector(forfilt, {time: 60000});
 
                 back.on('collect', r =>{
-                    if (page == 1) return;
+                    if (page == 0) return;
                     page--;
-                    msg.edit(non);
+                    msg.edit(pages[page]);
+                    r.users.remove(userid);
                 });
                 fors.on('collect', r =>{
-                    if (page == 2) return;
+                    if (page == 3) return;
                     page++;
-                    msg.edit(moderator);
+                    msg.edit(pages[page]);
+                    r.users.remove(userid);
                 });
             });
         })
@@ -381,7 +425,7 @@ client.on('message', async message => {
         if (member.hasPermission('ADMINISTRATOR') || member.hasPermission('MANAGE_CHANNELS') || member.hasPermission('MANAGE_MESSAGES')){
             const memb = message.mentions.users.first()
             if(memb){
-                db.run(`UPDATE users SET mute = ? WHERE id = ?`, [1, memb.id])
+                db.run(`UPDATE gusers SET mute = ? WHERE id_u = ? AND id_g = ?`, [1, memb.id, message.guild.id])
                 const muteemb = new Discord.MessageEmbed()
                 .setTitle('Пользователь замьючен')
                 .setColor(botColor)
@@ -405,7 +449,7 @@ client.on('message', async message => {
         if (member.hasPermission('ADMINISTRATOR') || member.hasPermission('MANAGE_CHANNELS') || member.hasPermission('MANAGE_MESSAGES')){
             const memb = message.mentions.users.first()
             if(memb){
-                db.run(`UPDATE users SET mute = ? WHERE id = ?`, [0, memb.id])
+                db.run(`UPDATE gusers SET mute = ? WHERE id_u = ? AND id_g = ?`, [0, memb.id, message.guild.id])
                 const muteemb = new Discord.MessageEmbed()
                 .setTitle('Пользователь размьючен')
                 .setColor(botColor)
@@ -668,14 +712,16 @@ client.on('message', async message => {
                 const fors = msg.createReactionCollector(forfilt, {time: 60000});
 
                 back.on('collect', r =>{
-                    if (page == 1) return;
+                    if (page == 1)   return;
                     msg.edit(prof); 
                     page--;
+                    r.users.remove(userid);
                 });
                 fors.on('collect', r =>{
                     if (page == 2) return;
                     msg.edit(inf); 
                     page++;
+                    r.users.remove(userid);
                 })
             })
         })
@@ -774,6 +820,7 @@ client.on('message', async message => {
         })
     }
     if(command == "эмбед"){
+        message.delete();
         const args_emb = message.content.slice(prefix.length).trim().split("'");
         let foot;
         if(!args_emb[5]){foot = 'Не указано'}else foot = args_emb[5]
@@ -824,12 +871,14 @@ client.on('message', async message => {
                     msg.delete();
                     if(row.filtr === 'off') message.channel.send(`Фильтрация чата успешно включена!`)
                     if(row.filtr === 'on') message.channel.send(`Фильтрация чата успешно выключена!`)
+                    r.users.remove(userid);
                 })
                 log.on('collect', r =>{
                     if(row.logs == 'on'){
                         msg.delete()
                         db.run(`UPDATE servers SET logs = ?, log_channel = ? WHERE id = ?`, ['off', 'id', message.guild.id]);
                         message.channel.send('Логи успешно отключены')
+                        r.users.remove(userid);
                     }else if (row.logs = 'off'){
                         const filter = m => m.author.id === message.author.id
                         const collector = message.channel.createMessageCollector(filter, { time: 60000 });
@@ -844,6 +893,7 @@ client.on('message', async message => {
                                 a.delete();
                             })
                             log_use++;
+                            r.users.remove(userid);
                             }
                         })
                         });
