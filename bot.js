@@ -5,7 +5,7 @@ const sqlite3 = require('sqlite3').verbose();
 
 let config = require('./settings.json');
 let servers = require('./servers.json');
-const { on } = require('process');
+const { on, execPath } = require('process');
 const { stringify } = require('querystring');
 
 const client = new Discord.Client();
@@ -15,7 +15,7 @@ let prefix = config.prefix;
 let version = config.version;
 let ownerid = '535402224373989396';
 let news = config.news;
-let botColor = 0x0099cc;
+let botColor = 0x507edb;
 
 let db = new sqlite3.Database('./users.db', sqlite3.OPEN_READWRITE, (err) => {
     if (err) {
@@ -60,7 +60,12 @@ function emb_error(name, text, author_url, message){
         })
 };
 
-
+let emojiscds = {
+    '^crystal^' : '798975013801689108',
+    '^book^' : '798975133993664522',
+    '^purplecry^' : '798975169489797120',
+    '^group^' : '798933227867209808'
+}
 function okey(react, msg, userid){
     msg.react(react).then(r =>{
         let itit = 0;
@@ -101,6 +106,23 @@ client.on('message', async message =>{
                 const bad_word = new Discord.MessageEmbed()
                 .setTitle('В вашем сообщение присуствует нецензурная лексика')
                 .setDescription(`Слово: ${servers.bad_words[i]}`)
+                .setColor(botColor)
+                .setAuthor('Модерация', client.user.avatarURL())
+                message.author.send(bad_word)
+                message.delete();
+                break;
+            }
+        }
+        let txts = message.content.split('');
+        let rgs = 0;
+        for (let i = 0; i < txts.length; i++){
+            if (txts[i] == txts[i].toUpperCase()){
+                rgs++;
+            }
+            if (rgs >= 4){
+                const bad_word = new Discord.MessageEmbed()
+                .setTitle('Упсс... Вы написали слово капсом....')
+                .setDescription(`Сообщение удалено...`)
                 .setColor(botColor)
                 .setAuthor('Модерация', client.user.avatarURL())
                 message.author.send(bad_word)
@@ -292,11 +314,12 @@ client.on('message', async message => {
             `баг` {баг который вы нашли} \n\
             `идея` {ваша идея} \n\
             `с` {текст} \n\
+            `эмодзи` \n\
         ")
         .setAuthor('{} - обяз. аргумент, <> - необяз.', message.author.avatarURL())
         .setFooter("Cтраница 4", client.user.avatarURL())
         let pages = [inf, moderator, moderator2, non]
-        message.channel.send(non).then(msg =>{
+        message.channel.send(inf).then(msg =>{
             msg.react('◀️').then(r =>{
                 msg.react('▶️')
                 const backfilt = (reaction, user) => reaction.emoji.name === '◀️' && user.id === userid;
@@ -467,6 +490,7 @@ client.on('message', async message => {
         }
     }
     if(command == "пинг"){
+        message.delete();
         let ping_bot = Math.round(client.ws.ping);
         let color;
         if (ping_bot <= 600) color = 0x19BA19;
@@ -478,9 +502,30 @@ client.on('message', async message => {
         .setColor(color); message.channel.send(ping);
     }
     if(command == "с"){
-        let arg = message.content.slice(".c".length).trim();
+        let argument = message.content.slice(".c".length).trim();
+        const arrgs = message.content.slice(prefix.length += 2).trim().split(' ');
         message.delete();
-        message.channel.send(arg);
+        for (let i = 0; i <= arrgs.length; i+=1){
+            const emojee = client.emojis.cache.get(emojiscds[arrgs[i]]); 
+            if (emojee != undefined) argument = argument.replace(`${arrgs[i]}`, emojee);
+        }
+        message.channel.send(argument)
+    }
+    if (command == "эмодзи"){
+        message.delete();
+        const e1 = client.emojis.cache.get('798975013801689108'); 
+        const e2 = client.emojis.cache.get('798975133993664522'); 
+        const e3 = client.emojis.cache.get('798975169489797120'); 
+        const e4 = client.emojis.cache.get('798933227867209808'); 
+        const emojiesEmb = new Discord.MessageEmbed()
+        .setColor(botColor)
+        .setTitle('Эмодзи в боте:')
+        .setDescription(`${e1} : ^rystal^\n\
+                         ${e2} : ^book^\n\
+                         ${e3} : ^purplecry^\n\
+                         ${e4} : ^group^`)
+        .setFooter('^emoji^ - использование')
+        message.channel.send(emojiesEmb)
     }
     if(command == "пред"){
         message.delete();
@@ -636,6 +681,10 @@ client.on('message', async message => {
         if(!args[0]){
             emb_error('Не указано количество!', "Не указано количество сообщений для удаления.\
             Использование команды: .очистить {кол-во сообщений}.", message.member.user.avatarURL(), message)
+            return;
+        }
+        if (args[0] != Number){
+            emb_error('Упссс..', 'Количество должно быть указано числом', message.member.user.avatarURL(), message) 
             return;
         }
         let numa = args[0]++;
